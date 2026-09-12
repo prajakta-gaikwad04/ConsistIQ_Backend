@@ -57,6 +57,13 @@ public class User {
     private boolean twoFactorEnabled = true;
 
     private String avatarStyle = "personas";
+    private String userType;
+
+    private String organization;
+
+    private String course;
+
+    private String designation;
     // ===========================================
     @Enumerated(EnumType.STRING)
     private Role role;
@@ -227,7 +234,37 @@ public class User {
 	public void setRole(Role role) {
 		this.role = role;
 	}
+	public String getUserType() {
+	    return userType;
+	}
 
+	public void setUserType(String userType) {
+	    this.userType = userType;
+	}
+
+	public String getOrganization() {
+	    return organization;
+	}
+
+	public void setOrganization(String organization) {
+	    this.organization = organization;
+	}
+
+	public String getCourse() {
+	    return course;
+	}
+
+	public void setCourse(String course) {
+	    this.course = course;
+	}
+
+	public String getDesignation() {
+	    return designation;
+	}
+
+	public void setDesignation(String designation) {
+	    this.designation = designation;
+	}
 	
     
     

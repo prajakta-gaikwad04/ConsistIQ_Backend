@@ -21,6 +21,7 @@ import com.may26.exception.UnauthorizedTaskAccessException;
 import com.may26.exception.UserNotFoundException;
 import com.may26.repository.UserRepository;
 import com.may26.task.dto.AchievementDTO;
+import com.may26.task.dto.DailySummaryDTO;
 import com.may26.task.dto.DashboardDTO;
 import com.may26.task.dto.StreakCalendarDTO;
 import com.may26.task.dto.TaskRequestDto;
@@ -50,7 +51,19 @@ public class TaskService {
 		task.setPriority(dto.getPriority());
 		task.setDueDate(dto.getDueDate());
 		task.setCategory(dto.getCategory());
-		
+
+		task.setRecurring(dto.isRecurring());
+		task.setRecurrenceType(
+		        dto.isRecurring()
+		                ? dto.getRecurrenceType()
+		                : com.may26.task.enums.RecurrenceType.NONE
+		);
+		task.setRecurrenceEndDate(
+		        dto.isRecurring()
+		                ? dto.getRecurrenceEndDate()
+		                : null
+		);
+
 		task.setUser(user);
 		
 		Task savedTask=taskRepository.save(task);
@@ -64,6 +77,11 @@ public class TaskService {
 		response.setPriority(savedTask.getPriority());
 		response.setDueDate(savedTask.getDueDate());
 		response.setCategory(savedTask.getCategory());
+		response.setRecurring(savedTask.isRecurring());
+		response.setRecurrenceType(savedTask.getRecurrenceType());
+		response.setRecurrenceEndDate(
+		        savedTask.getRecurrenceEndDate()
+		);
 
 	   return response;
 	}
@@ -208,6 +226,19 @@ public class TaskService {
 	    task.setPriority(dto.getPriority());
 	    task.setDueDate(dto.getDueDate());
 	    task.setCategory(dto.getCategory());
+	    task.setRecurring(dto.isRecurring());
+
+	    task.setRecurrenceType(
+	            dto.isRecurring()
+	                    ? dto.getRecurrenceType()
+	                    : com.may26.task.enums.RecurrenceType.NONE
+	    );
+
+	    task.setRecurrenceEndDate(
+	            dto.isRecurring()
+	                    ? dto.getRecurrenceEndDate()
+	                    : null
+	    );
 
 	    Task savedTask = taskRepository.save(task);
 
@@ -220,6 +251,11 @@ public class TaskService {
 	    response.setPriority(savedTask.getPriority());
 	    response.setDueDate(savedTask.getDueDate());
 	    response.setCategory(savedTask.getCategory());
+	    response.setRecurring(savedTask.isRecurring());
+	    response.setRecurrenceType(savedTask.getRecurrenceType());
+	    response.setRecurrenceEndDate(
+	            savedTask.getRecurrenceEndDate()
+	    );
 
 	    return response;
 	}
@@ -234,18 +270,52 @@ public class TaskService {
 	}
 	
 	
-	
 	public Task completeTask(Long id, String email) {
 
 	    Task task = getTaskForCurrentUser(id, email);
 
 	    task.setStatus(TaskStatus.COMPLETED);
-	    
 	    task.setCompletedAt(LocalDate.now());
 
-	    return taskRepository.save(task);
+	    Task completedTask = taskRepository.save(task);
+
+	    // Create next occurrence only if task is recurring
+	    if (task.isRecurring()
+	            && task.getRecurrenceType() != null
+	            && task.getRecurrenceType() != com.may26.task.enums.RecurrenceType.NONE) {
+
+	        LocalDate nextDueDate = calculateNextDueDate(
+	                task.getDueDate(),
+	                task.getRecurrenceType()
+	        );
+
+	        // Create next task only if it is within recurrence end date
+	        if (task.getRecurrenceEndDate() == null
+	                || !nextDueDate.isAfter(task.getRecurrenceEndDate())) {
+
+	            Task nextTask = new Task();
+
+	            nextTask.setTitle(task.getTitle());
+	            nextTask.setDescription(task.getDescription());
+	            nextTask.setStatus(TaskStatus.PLANNED);
+	            nextTask.setPriority(task.getPriority());
+	            nextTask.setDueDate(nextDueDate);
+	            nextTask.setCategory(task.getCategory());
+
+	            nextTask.setRecurring(true);
+	            nextTask.setRecurrenceType(task.getRecurrenceType());
+	            nextTask.setRecurrenceEndDate(
+	                    task.getRecurrenceEndDate()
+	            );
+
+	            nextTask.setUser(task.getUser());
+
+	            taskRepository.save(nextTask);
+	        }
+	    }
+
+	    return completedTask;
 	}
-	
 	
 	public Page<TaskResponseDto> getTasks(
 	        String email,
@@ -300,6 +370,11 @@ public class TaskService {
 	    dto.setPriority(task.getPriority());
 	    dto.setDueDate(task.getDueDate());
 	    dto.setCategory(task.getCategory());
+	    dto.setRecurring(task.isRecurring());
+	    dto.setRecurrenceType(task.getRecurrenceType());
+	    dto.setRecurrenceEndDate(
+	            task.getRecurrenceEndDate()
+	    );
 
 	    return dto;
 	}
@@ -470,9 +545,73 @@ public class TaskService {
 	
 	
 	
+	public DailySummaryDTO getDailySummary(String email) {
+
+	    User user = userRepository.findByEmail(email)
+	            .orElseThrow(() ->
+	                    new UserNotFoundException("User not found"));
+
+	    LocalDate today = LocalDate.now();
+	    LocalDate tomorrow = today.plusDays(1);
+
+	    List<Task> allTasks = taskRepository.findByUser(user);
+
+	    List<TaskResponseDto> overdueTasks = allTasks.stream()
+	            .filter(task ->
+	                    task.getDueDate() != null &&
+	                    task.getDueDate().isBefore(today) &&
+	                    task.getStatus() != TaskStatus.COMPLETED &&
+	                    task.getStatus() != TaskStatus.CANCELLED)
+	            .map(this::mapToDto)
+	            .toList();
+
+	    List<TaskResponseDto> todayTasks = allTasks.stream()
+	            .filter(task ->
+	                    task.getDueDate() != null &&
+	                    task.getDueDate().equals(today) &&
+	                    task.getStatus() != TaskStatus.COMPLETED &&
+	                    task.getStatus() != TaskStatus.CANCELLED)
+	            .map(this::mapToDto)
+	            .toList();
+
+	    List<TaskResponseDto> highPriorityTasks = allTasks.stream()
+	            .filter(task ->
+	                    task.getPriority() == TaskPriority.HIGH &&
+	                    task.getStatus() != TaskStatus.COMPLETED &&
+	                    task.getStatus() != TaskStatus.CANCELLED)
+	            .map(this::mapToDto)
+	            .toList();
+
+	    List<TaskResponseDto> completedTodayTasks = allTasks.stream()
+	            .filter(task ->
+	                    task.getStatus() == TaskStatus.COMPLETED &&
+	                    task.getCompletedAt() != null &&
+	                    task.getCompletedAt().equals(today))
+	            .map(this::mapToDto)
+	            .toList();
+
+	    List<TaskResponseDto> tomorrowTasks = allTasks.stream()
+	            .filter(task ->
+	                    task.getDueDate() != null &&
+	                    task.getDueDate().equals(tomorrow) &&
+	                    task.getStatus() != TaskStatus.COMPLETED &&
+	                    task.getStatus() != TaskStatus.CANCELLED)
+	            .map(this::mapToDto)
+	            .toList();
+
+	    return new DailySummaryDTO(
+	            overdueTasks,
+	            todayTasks,
+	            highPriorityTasks,
+	            completedTodayTasks,
+	            tomorrowTasks
+	    );
+	}
 	
-	
-	public String uploadFile(Long taskId, MultipartFile file) throws IOException {
+	public String uploadFile(Long taskId, MultipartFile file, String email) throws IOException {
+
+	    // 1. Verify task belongs to logged-in user
+	    Task task = getTaskForCurrentUser(taskId, email);
 
 	    String uploadDir = System.getProperty("user.dir") + "/uploads/";
 
@@ -486,18 +625,14 @@ public class TaskService {
 
 	    String filePath = uploadDir + fileName;
 
+	    // 2. Save file only after ownership is verified
 	    file.transferTo(new File(filePath));
 
-	    Task task = taskRepository.findById(taskId)
-	            .orElseThrow(() -> new RuntimeException("Task not found"));
-
 	    task.setAttachmentPath(filePath);
-
 	    taskRepository.save(task);
 
 	    return "File uploaded successfully";
 	}
-	
 	public double getCompletionRate(String email) {
 
 	    User user = userRepository.findByEmail(email)
@@ -649,6 +784,25 @@ public class TaskService {
 	    taskRepository.delete(task);
 
 	    return "Task deleted successfully";
+	}
+	private LocalDate calculateNextDueDate(
+	        LocalDate currentDate,
+	        com.may26.task.enums.RecurrenceType recurrenceType) {
+
+	    switch (recurrenceType) {
+
+	        case DAILY:
+	            return currentDate.plusDays(1);
+
+	        case WEEKLY:
+	            return currentDate.plusWeeks(1);
+
+	        case MONTHLY:
+	            return currentDate.plusMonths(1);
+
+	        default:
+	            return currentDate;
+	    }
 	}
 
 }

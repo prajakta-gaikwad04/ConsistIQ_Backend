@@ -35,13 +35,18 @@ public class JwtFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
     	String path = request.getServletPath();
 
-    	if (path.startsWith("/auth/")
+    	if (path.equals("/auth/register")
+    	        || path.equals("/auth/login")
+    	        || path.equals("/auth/verify-otp")
+    	        || path.equals("/auth/forgot-password")
+    	        || path.equals("/auth/reset-password")
     	        || path.startsWith("/swagger-ui")
     	        || path.startsWith("/v3/api-docs")
     	        || path.startsWith("/uploads")) {
 
     	    filterChain.doFilter(request, response);
     	    return;
+    	
     	}
     	System.out.println("Request URI: " + request.getRequestURI());
 

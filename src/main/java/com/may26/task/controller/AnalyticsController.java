@@ -1,11 +1,13 @@
 package com.may26.task.controller;
 
 import java.security.Principal;
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.may26.task.dto.ChartPointDTO;
@@ -43,9 +45,16 @@ public class AnalyticsController {
 
 
     @GetMapping("/completion-dates")
-    public List<?> getCompletionDates(Principal principal) {
+    public List<LocalDate> getCompletionDates(
+            Principal principal,
+            @RequestParam LocalDate startDate,
+            @RequestParam LocalDate endDate) {
 
-        return analyticsService.getCompletionDates(principal.getName());
+        return analyticsService.getCompletionDates(
+                principal.getName(),
+                startDate,
+                endDate
+        );
     }
     
     @GetMapping("/streak")

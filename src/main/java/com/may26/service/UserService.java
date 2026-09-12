@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -370,6 +371,23 @@ public class UserService {
 
 	    return token;
 	}
-	
+	@Async
+	public void sendLoginOtpEmailAsync(String email, String otp) {
+
+	    SimpleMailMessage message = new SimpleMailMessage();
+
+	    message.setTo(email);
+	    message.setSubject("ConsistIQ Login Verification");
+
+	    message.setText(
+	            "Hello,\n\n" +
+	            "Your login OTP is: " + otp +
+	            "\n\nThis OTP is valid for 5 minutes." +
+	            "\n\nDo not share this OTP with anyone." +
+	            "\n\nRegards,\nConsistIQ Team"
+	    );
+
+	    mailSender.send(message);
+	}
 	
 }

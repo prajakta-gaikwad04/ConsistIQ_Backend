@@ -45,25 +45,32 @@ public class AuthController {
 	
 	@PostMapping("/register")
 	public String register(@RequestBody AuthRequest request) {
-		
-		if(userRepository.findByEmail(request.getEmail()).isPresent()) {
-			return "Email already exists";
-		}
-		User user = new User();
 
-		user.setName(request.getName());
-		user.setEmail(request.getEmail());
+	    if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+	        return "Email already exists";
+	    }
 
-		user.setPassword(
-		    userService.encryptPassword(request.getPassword())
-		);
+	    User user = new User();
 
-		// Default role for every new user
-		user.setRole(Role.ROLE_USER);
+	    user.setName(request.getName());
+	    user.setEmail(request.getEmail());
 
-		userRepository.save(user);
-		
-		return "User registred Successfully";
+	    user.setPassword(
+	        userService.encryptPassword(request.getPassword())
+	    );
+
+	    // User type details
+	    user.setUserType(request.getUserType());
+	    user.setOrganization(request.getOrganization());
+	    user.setCourse(request.getCourse());
+	    user.setDesignation(request.getDesignation());
+
+	    // Default role
+	    user.setRole(Role.ROLE_USER);
+
+	    userRepository.save(user);
+
+	    return "User Registered Successfully";
 	}
 	
 	@PostMapping("/login")
@@ -99,8 +106,7 @@ public class AuthController {
 	    userRepository.save(user);
 
 	    // Send Email
-	    userService.sendOtpEmail(user.getEmail(), otp);
-
+	    userService.sendLoginOtpEmailAsync(user.getEmail(), otp);
 	    // DON'T Generate JWT here
 	    return "OTP Sent Successfully";
 	}

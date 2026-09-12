@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.may26.task.dto.AchievementDTO;
+import com.may26.task.dto.DailySummaryDTO;
 import com.may26.task.dto.DashboardDTO;
 import com.may26.task.dto.StreakCalendarDTO;
 import com.may26.task.dto.TaskRequestDto;
@@ -230,10 +231,15 @@ public class TaskController {
 	@PostMapping("/{id}/upload")
 	public ResponseEntity<String> uploadFile(
 	        @PathVariable Long id,
-	        @RequestParam("file") MultipartFile file) throws IOException {
+	        @RequestParam("file") MultipartFile file,
+	        Principal principal) throws IOException {
 
 	    return ResponseEntity.ok(
-	            taskService.uploadFile(id, file)
+	            taskService.uploadFile(
+	                    id,
+	                    file,
+	                    principal.getName()
+	            )
 	    );
 	}
 	
@@ -270,6 +276,16 @@ public class TaskController {
 
 	    return ResponseEntity.ok(
 	            taskService.getAchievements(
+	                    authentication.getName()
+	            )
+	    );
+	}
+	@GetMapping("/daily-summary")
+	public ResponseEntity<DailySummaryDTO> getDailySummary(
+	        Authentication authentication) {
+
+	    return ResponseEntity.ok(
+	            taskService.getDailySummary(
 	                    authentication.getName()
 	            )
 	    );

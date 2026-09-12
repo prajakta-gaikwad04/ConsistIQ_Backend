@@ -4,10 +4,13 @@ import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.may26.entity.User;
+import com.may26.task.enums.RecurrenceType;
 import com.may26.task.enums.TaskPriority;
 import com.may26.task.enums.TaskStatus;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -44,6 +47,12 @@ public class Task {
 	private String attachmentPath;
 	
 	private LocalDate completedAt;
+	private boolean recurring;
+
+	@Enumerated(EnumType.STRING)
+	private RecurrenceType recurrenceType;
+
+	private LocalDate recurrenceEndDate;
 	
 	@JsonBackReference
 	@ManyToOne
@@ -113,6 +122,29 @@ public class Task {
 	}
 	public void setCompletedAt(LocalDate completedAt) {
 		this.completedAt = completedAt;
+	}
+	public boolean isRecurring() {
+	    return recurring;
+	}
+
+	public void setRecurring(boolean recurring) {
+	    this.recurring = recurring;
+	}
+
+	public RecurrenceType getRecurrenceType() {
+	    return recurrenceType;
+	}
+
+	public void setRecurrenceType(RecurrenceType recurrenceType) {
+	    this.recurrenceType = recurrenceType;
+	}
+
+	public LocalDate getRecurrenceEndDate() {
+	    return recurrenceEndDate;
+	}
+
+	public void setRecurrenceEndDate(LocalDate recurrenceEndDate) {
+	    this.recurrenceEndDate = recurrenceEndDate;
 	}
 	
 	

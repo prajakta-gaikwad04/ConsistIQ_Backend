@@ -146,7 +146,10 @@ public class AnalyticsService {
     // -------------------------------
     // 🔥 STREAK BASE DATA (OPTIONAL)
     // -------------------------------
-    public List<LocalDate> getCompletionDates(String email) {
+    public List<LocalDate> getCompletionDates(
+            String email,
+            LocalDate startDate,
+            LocalDate endDate) {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -156,10 +159,12 @@ public class AnalyticsService {
                 .filter(t -> t.getStatus() == TaskStatus.COMPLETED)
                 .map(Task::getCompletedAt)
                 .filter(Objects::nonNull)
+                .filter(date -> !date.isBefore(startDate))
+                .filter(date -> !date.isAfter(endDate))
+                .distinct()
                 .sorted()
                 .toList();
     }
-    
     
     public StreakDto getStreak(String email) {
 
