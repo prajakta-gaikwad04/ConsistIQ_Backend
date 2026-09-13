@@ -47,6 +47,7 @@ public class SecurityConfig {
                         "/auth/send-otp",
                         "/auth/forgot-password",
                         "/auth/reset-password"
+                       
                 ).permitAll()
 
                 .requestMatchers("/admin/**").hasRole("ADMIN")
