@@ -3,11 +3,14 @@ package com.may26.task.service;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -24,11 +27,14 @@ import com.may26.task.dto.AchievementDTO;
 import com.may26.task.dto.DailySummaryDTO;
 import com.may26.task.dto.DashboardDTO;
 import com.may26.task.dto.StreakCalendarDTO;
+import com.may26.task.dto.TaskAttachmentResponseDto;
 import com.may26.task.dto.TaskRequestDto;
 import com.may26.task.dto.TaskResponseDto;
 import com.may26.task.entity.Task;
+import com.may26.task.entity.TaskAttachment;
 import com.may26.task.enums.TaskPriority;
 import com.may26.task.enums.TaskStatus;
+import com.may26.task.repository.TaskAttachmentRepository;
 import com.may26.task.repository.TaskRepository;
 import com.may26.task.specifications.TaskSpecification;
 
@@ -39,7 +45,8 @@ public class TaskService {
 	
 	@Autowired
 	private UserRepository userRepository;
-	
+	@Autowired
+	private TaskAttachmentRepository taskAttachmentRepository;
 	public TaskResponseDto createTask(TaskRequestDto dto ,String email) {
 		
 		User user=userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
@@ -376,6 +383,13 @@ public class TaskService {
 	            task.getRecurrenceEndDate()
 	    );
 
+	    dto.setAttachments(
+	            task.getAttachments()
+	                    .stream()
+	                    .map(this::mapAttachmentToDto)
+	                    .toList()
+	    );
+
 	    return dto;
 	}
 	
@@ -608,31 +622,50 @@ public class TaskService {
 	    );
 	}
 	
-	public String uploadFile(Long taskId, MultipartFile file, String email) throws IOException {
+	public String uploadFile(
+	        Long taskId,
+	        MultipartFile file,
+	        String email) throws IOException {
 
-	    // 1. Verify task belongs to logged-in user
+	    // Verify task belongs to logged-in user
 	    Task task = getTaskForCurrentUser(taskId, email);
 
-	    String uploadDir = System.getProperty("user.dir") + "/uploads/";
+	    String uploadDir =
+	            System.getProperty("user.dir") + "/uploads/";
 
 	    File directory = new File(uploadDir);
+
 	    if (!directory.exists()) {
 	        directory.mkdirs();
 	    }
 
-	    String fileName = System.currentTimeMillis()
-	            + "_" + file.getOriginalFilename();
+	    String originalFileName = file.getOriginalFilename();
+
+	    String fileName =
+	            System.currentTimeMillis()
+	            + "_"
+	            + originalFileName;
 
 	    String filePath = uploadDir + fileName;
 
-	    // 2. Save file only after ownership is verified
+	    // Save physical file
 	    file.transferTo(new File(filePath));
 
-	    task.setAttachmentPath(filePath);
-	    taskRepository.save(task);
+	    // Create attachment record
+	    TaskAttachment attachment = new TaskAttachment();
+
+	    attachment.setFileName(originalFileName);
+	    attachment.setFilePath(filePath);
+	    attachment.setFileType(file.getContentType());
+	    attachment.setFileSize(file.getSize());
+	    attachment.setUploadedAt(LocalDateTime.now());
+	    attachment.setTask(task);
+
+	    taskAttachmentRepository.save(attachment);
 
 	    return "File uploaded successfully";
 	}
+	
 	public double getCompletionRate(String email) {
 
 	    User user = userRepository.findByEmail(email)
@@ -644,8 +677,60 @@ public class TaskService {
 	    return total == 0 ? 0 : (completed * 100.0 / total);
 	}
 	
-	
-	
+	public Resource getAttachment(
+	        Long taskId,
+	        Long attachmentId,
+	        String email) {
+
+	    // Verify that the task belongs to the logged-in user
+	    Task task = getTaskForCurrentUser(taskId, email);
+
+	    TaskAttachment attachment =
+	            taskAttachmentRepository.findById(attachmentId)
+	                    .orElseThrow(() ->
+	                            new RuntimeException("Attachment not found"));
+
+	    // Make sure this attachment belongs to this task
+	    if (!attachment.getTask().getId().equals(task.getId())) {
+	        throw new UnauthorizedTaskAccessException(
+	                "You are not allowed to access this attachment");
+	    }
+
+	    File file = new File(attachment.getFilePath());
+
+	    if (!file.exists()) {
+	        throw new RuntimeException("File not found");
+	    }
+
+	    return new FileSystemResource(file);
+	}
+	public String deleteAttachment(
+	        Long taskId,
+	        Long attachmentId,
+	        String email) {
+
+	    Task task = getTaskForCurrentUser(taskId, email);
+
+	    TaskAttachment attachment =
+	            taskAttachmentRepository.findById(attachmentId)
+	                    .orElseThrow(() ->
+	                            new RuntimeException("Attachment not found"));
+
+	    if (!attachment.getTask().getId().equals(task.getId())) {
+	        throw new UnauthorizedTaskAccessException(
+	                "You are not allowed to delete this attachment");
+	    }
+
+	    File file = new File(attachment.getFilePath());
+
+	    if (file.exists()) {
+	        file.delete();
+	    }
+
+	    taskAttachmentRepository.delete(attachment);
+
+	    return "Attachment deleted successfully";
+	}
 	public List<LocalDate> getCompletionDates(String email) {
 
 	    User user = userRepository.findByEmail(email)
@@ -803,6 +888,32 @@ public class TaskService {
 	        default:
 	            return currentDate;
 	    }
+	}
+	public List<TaskAttachmentResponseDto> getAttachments(
+	        Long taskId,
+	        String email) {
+
+	    Task task = getTaskForCurrentUser(taskId, email);
+
+	    return taskAttachmentRepository
+	            .findByTask(task)
+	            .stream()
+	            .map(this::mapAttachmentToDto)
+	            .toList();
+	}
+	private TaskAttachmentResponseDto mapAttachmentToDto(
+	        TaskAttachment attachment) {
+
+	    TaskAttachmentResponseDto dto =
+	            new TaskAttachmentResponseDto();
+
+	    dto.setId(attachment.getId());
+	    dto.setFileName(attachment.getFileName());
+	    dto.setFileType(attachment.getFileType());
+	    dto.setFileSize(attachment.getFileSize());
+	    dto.setUploadedAt(attachment.getUploadedAt());
+
+	    return dto;
 	}
 
 }

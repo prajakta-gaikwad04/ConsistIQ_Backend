@@ -5,7 +5,10 @@ import java.security.Principal;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -24,6 +27,7 @@ import com.may26.task.dto.AchievementDTO;
 import com.may26.task.dto.DailySummaryDTO;
 import com.may26.task.dto.DashboardDTO;
 import com.may26.task.dto.StreakCalendarDTO;
+import com.may26.task.dto.TaskAttachmentResponseDto;
 import com.may26.task.dto.TaskRequestDto;
 import com.may26.task.dto.TaskResponseDto;
 import com.may26.task.entity.Task;
@@ -242,7 +246,73 @@ public class TaskController {
 	            )
 	    );
 	}
-	
+	@GetMapping("/{taskId}/attachments")
+	public ResponseEntity<List<TaskAttachmentResponseDto>> getAttachments(
+	        @PathVariable Long taskId,
+	        Principal principal) {
+
+	    return ResponseEntity.ok(
+	            taskService.getAttachments(
+	                    taskId,
+	                    principal.getName()
+	            )
+	    );
+	}
+	@GetMapping("/{taskId}/attachments/{attachmentId}")
+	public ResponseEntity<Resource> getAttachment(
+	        @PathVariable Long taskId,
+	        @PathVariable Long attachmentId,
+	        Principal principal) {
+
+	    Resource resource = taskService.getAttachment(
+	            taskId,
+	            attachmentId,
+	            principal.getName()
+	    );
+
+	    MediaType mediaType =
+	            MediaType.APPLICATION_OCTET_STREAM;
+
+	    try {
+	        String contentType =
+	                java.nio.file.Files.probeContentType(
+	                        resource.getFile().toPath()
+	                );
+
+	        if (contentType != null) {
+	            mediaType = MediaType.parseMediaType(contentType);
+	        }
+
+	    } catch (Exception e) {
+	        System.out.println(
+	                "Could not determine file type"
+	        );
+	    }
+
+	    return ResponseEntity.ok()
+	            .contentType(mediaType)
+	            .header(
+	                    HttpHeaders.CONTENT_DISPOSITION,
+	                    "inline; filename=\"" +
+	                            resource.getFilename() +
+	                            "\""
+	            )
+	            .body(resource);
+	}
+	@DeleteMapping("/{taskId}/attachments/{attachmentId}")
+	public ResponseEntity<String> deleteAttachment(
+	        @PathVariable Long taskId,
+	        @PathVariable Long attachmentId,
+	        Principal principal) {
+
+	    return ResponseEntity.ok(
+	            taskService.deleteAttachment(
+	                    taskId,
+	                    attachmentId,
+	                    principal.getName()
+	            )
+	    );
+	}
 	@GetMapping("/upcoming")
 	public ResponseEntity<List<Task>> getUpcomingTasks(
 	        Authentication authentication) {

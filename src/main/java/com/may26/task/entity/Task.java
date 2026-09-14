@@ -1,6 +1,8 @@
 package com.may26.task.entity;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.may26.entity.User;
@@ -8,6 +10,7 @@ import com.may26.task.enums.RecurrenceType;
 import com.may26.task.enums.TaskPriority;
 import com.may26.task.enums.TaskStatus;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -16,6 +19,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -45,7 +49,12 @@ public class Task {
 	private String category;
 	
 	private String attachmentPath;
-	
+	@OneToMany(
+	        mappedBy = "task",
+	        cascade = CascadeType.ALL,
+	        orphanRemoval = true
+	)
+	private List<TaskAttachment> attachments = new ArrayList<>();
 	private LocalDate completedAt;
 	private boolean recurring;
 
@@ -146,7 +155,13 @@ public class Task {
 	public void setRecurrenceEndDate(LocalDate recurrenceEndDate) {
 	    this.recurrenceEndDate = recurrenceEndDate;
 	}
-	
+	public List<TaskAttachment> getAttachments() {
+	    return attachments;
+	}
+
+	public void setAttachments(List<TaskAttachment> attachments) {
+	    this.attachments = attachments;
+	}
 	
 
 }

@@ -1,6 +1,7 @@
 package com.may26.task.dto;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import com.may26.task.enums.RecurrenceType;
 import com.may26.task.enums.TaskPriority;
@@ -26,7 +27,7 @@ public class TaskResponseDto {
     private RecurrenceType recurrenceType;
 
     private LocalDate recurrenceEndDate;
-
+    private List<TaskAttachmentResponseDto> attachments;
 	public Long getId() {
 		return id;
 	}
@@ -105,5 +106,12 @@ public class TaskResponseDto {
 
 	public void setRecurrenceEndDate(LocalDate recurrenceEndDate) {
 	    this.recurrenceEndDate = recurrenceEndDate;
+	}
+	public List<TaskAttachmentResponseDto> getAttachments() {
+	    return attachments;
+	}
+
+	public void setAttachments(List<TaskAttachmentResponseDto> attachments) {
+	    this.attachments = attachments;
 	}
 }
