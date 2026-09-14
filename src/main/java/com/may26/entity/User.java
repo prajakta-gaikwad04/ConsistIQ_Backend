@@ -64,6 +64,9 @@ public class User {
     private String course;
 
     private String designation;
+    private boolean deleted = false;
+
+    private LocalDateTime deletedAt;
     // ===========================================
     @Enumerated(EnumType.STRING)
     private Role role;
@@ -266,6 +269,20 @@ public class User {
 	    this.designation = designation;
 	}
 	
-    
+	public boolean isDeleted() {
+	    return deleted;
+	}
+
+	public void setDeleted(boolean deleted) {
+	    this.deleted = deleted;
+	}
+
+	public LocalDateTime getDeletedAt() {
+	    return deletedAt;
+	}
+
+	public void setDeletedAt(LocalDateTime deletedAt) {
+	    this.deletedAt = deletedAt;
+	}
     
 }

@@ -66,14 +66,33 @@ public class UserService {
 	    return user.getRole() == Role.ROLE_ADMIN;
 	}
 	public List<User> getAllUsers() {
-	    return userRepository.findAll();
+	    return userRepository.findByDeletedFalse();
 	}
+
+	public List<User> getDeletedUsers() {
+	    return userRepository.findByDeletedTrue();
+	}
+
 	public void deleteUser(Long id) {
 
 	    User user = userRepository.findById(id)
 	            .orElseThrow(() -> new RuntimeException("User not found"));
 
-	    userRepository.delete(user);
+	    user.setDeleted(true);
+	    user.setDeletedAt(LocalDateTime.now());
+
+	    userRepository.save(user);
+	}
+
+	public void restoreUser(Long id) {
+
+	    User user = userRepository.findById(id)
+	            .orElseThrow(() -> new RuntimeException("User not found"));
+
+	    user.setDeleted(false);
+	    user.setDeletedAt(null);
+
+	    userRepository.save(user);
 	}
 	
 	public Role getRoleByEmail(String email) {
