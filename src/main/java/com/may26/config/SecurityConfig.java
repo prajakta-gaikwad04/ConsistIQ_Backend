@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -23,8 +24,6 @@ public class SecurityConfig {
 
     @Autowired
     private JwtFilter jwtFilter;
-    
-    
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http)
@@ -36,22 +35,27 @@ public class SecurityConfig {
 
             .authorizeHttpRequests(auth -> auth
 
+                // Allow browser preflight requests
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // Public authentication endpoints
                 .requestMatchers(
                         "/auth/register",
                         "/auth/login",
                         "/auth/verify-otp",
+                        "/auth/send-otp",
+                        "/auth/forgot-password",
+                        "/auth/reset-password",
+                        "/auth/refresh",
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html",
-                        "/uploads/**",
-                        "/auth/send-otp",
-                        "/auth/forgot-password",
-                        "/auth/reset-password"
-                       
+                        "/uploads/**"
                 ).permitAll()
 
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/user/**").hasAnyRole("USER", "ADMIN")
+
                 .anyRequest().authenticated()
             )
 
@@ -67,7 +71,7 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-    
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
@@ -79,8 +83,15 @@ public class SecurityConfig {
                         "https://serene-beijinho-60d7b6.netlify.app"
                 )
         );
+
         configuration.setAllowedMethods(
-                List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                List.of(
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "DELETE",
+                        "OPTIONS"
+                )
         );
 
         configuration.setAllowedHeaders(

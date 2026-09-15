@@ -1,5 +1,8 @@
 package com.may26.service;
+import com.resend.Resend;
 
+import com.resend.core.exception.ResendException;
+import com.resend.services.emails.model.CreateEmailOptions;
 import java.io.File;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -7,6 +10,7 @@ import java.util.Random;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
@@ -28,6 +32,8 @@ import com.may26.task.enums.Role;
 
 @Service
 public class UserService {
+	@Value("${RESEND_API_KEY}")
+	private String resendApiKey;
 	
 	@Autowired
 	private JavaMailSender mailSender;
@@ -104,23 +110,35 @@ public class UserService {
 	}
 	public void sendOtpEmail(String email, String otp) {
 
-	    SimpleMailMessage message = new SimpleMailMessage();
+	    try {
 
-	    message.setTo(email);
+	        Resend resend = new Resend(resendApiKey);
 
-	    message.setSubject("ConsistIQ Login Verification");
+	        CreateEmailOptions params = CreateEmailOptions.builder()
+	                .from("onboarding@resend.dev")
+	                .to(email)
+	                .subject("ConsistIQ Login Verification")
+	                .text(
+	                    "Hello,\n\n" +
+	                    "Your ConsistIQ login OTP is: " + otp + "\n\n" +
+	                    "This OTP is valid for 5 minutes.\n\n" +
+	                    "Regards,\n" +
+	                    "ConsistIQ Team"
+	                )
+	                .build();
 
-	    message.setText(
-	            "Hello,\n\n" +
-	            "Your login OTP is: " + otp +
-	            "\n\nThis OTP is valid for 5 minutes." +
-	            "\n\nDo not share this OTP with anyone." +
-	            "\n\nRegards,\nConsistIQ Team"
-	    );
+	        resend.emails().send(params);
 
-	    mailSender.send(message);
+	        System.out.println("OTP email sent successfully to: " + email);
+
+	    } catch (ResendException e) {
+
+	        System.out.println("Resend email error: " + e.getMessage());
+
+	        throw new RuntimeException("Failed to send OTP email");
+
+	    }
 	}
-	
 	public AuthResponse verifyOtp(OtpRequest request) {
 
 	    User user = userRepository
@@ -342,7 +360,7 @@ public class UserService {
 	    );
 
 	    String imageUrl =
-	            "http://localhost:8081/uploads/" + fileName;
+	            "https://consistiq-backend.onrender.com/uploads/" + fileName;
 
 	    user.setProfileImage(imageUrl);
 
@@ -393,20 +411,32 @@ public class UserService {
 	@Async
 	public void sendLoginOtpEmailAsync(String email, String otp) {
 
-	    SimpleMailMessage message = new SimpleMailMessage();
+	    try {
 
-	    message.setTo(email);
-	    message.setSubject("ConsistIQ Login Verification");
+	        Resend resend = new Resend(resendApiKey);
 
-	    message.setText(
-	            "Hello,\n\n" +
-	            "Your login OTP is: " + otp +
-	            "\n\nThis OTP is valid for 5 minutes." +
-	            "\n\nDo not share this OTP with anyone." +
-	            "\n\nRegards,\nConsistIQ Team"
-	    );
+	        CreateEmailOptions params = CreateEmailOptions.builder()
+	                .from("onboarding@resend.dev")
+	                .to(email)
+	                .subject("ConsistIQ Login Verification")
+	                .text(
+	                    "Hello,\n\n" +
+	                    "Your ConsistIQ login OTP is: " + otp + "\n\n" +
+	                    "This OTP is valid for 5 minutes.\n\n" +
+	                    "Regards,\n" +
+	                    "ConsistIQ Team"
+	                )
+	                .build();
 
-	    mailSender.send(message);
+	        resend.emails().send(params);
+
+	        System.out.println("Login OTP email sent successfully to: " + email);
+
+	    } catch (ResendException e) {
+
+	        System.out.println("Resend login email error: " + e.getMessage());
+
+	    }
 	}
 	
 }
