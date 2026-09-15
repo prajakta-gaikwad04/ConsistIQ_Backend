@@ -19,7 +19,10 @@ public class CorsConfig {
 
         config.setAllowCredentials(true);
         config.setAllowedOrigins(
-                List.of("http://localhost:5173")
+                List.of(
+                        "http://localhost:5173",
+                        "https://serene-beijinho-60d7b6.netlify.app"
+                )
         );
 
         config.setAllowedHeaders(List.of("*"));
