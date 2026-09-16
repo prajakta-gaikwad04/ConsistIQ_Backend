@@ -18,10 +18,11 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowCredentials(true);
+
         config.setAllowedOrigins(
                 List.of(
                         "http://localhost:5173",
-                        "https://serene-beijinho-60d7b6.netlify.app"
+                        "https://consistiq.netlify.app"
                 )
         );
 

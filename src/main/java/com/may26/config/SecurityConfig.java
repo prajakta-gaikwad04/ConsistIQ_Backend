@@ -80,7 +80,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(
                 List.of(
                         "http://localhost:5173",
-                        "https://serene-beijinho-60d7b6.netlify.app"
+                        "https://consistiq.netlify.app"
                 )
         );
 
