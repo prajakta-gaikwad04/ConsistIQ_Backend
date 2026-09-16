@@ -1,5 +1,6 @@
 package com.may26.service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -54,32 +55,101 @@ public class DailyWordReplenishmentService {
                             + "Starting replenishment..."
             );
 
+            /*
+             * First try words discovered from Datamuse.
+             */
             List<String> candidates =
                     wordDiscoveryService.findWords();
 
-            if (candidates == null
-                    || candidates.isEmpty()) {
-
-                System.out.println(
-                        "No new word candidates found."
-                );
-
-                return;
+            if (candidates == null) {
+                candidates = new ArrayList<>();
             }
 
+            /*
+             * Add reliable built-in candidates as a fallback.
+             * These are appended only when the existing pool
+             * still needs more words.
+             */
+            List<String> fallbackCandidates = List.of(
+                    "clarify",
+                    "reliable",
+                    "confident",
+                    "efficient",
+                    "adapt",
+                    "communicate",
+                    "collaborate",
+                    "improve",
+                    "curious",
+                    "precise",
+                    "creative",
+                    "persistent",
+                    "responsible",
+                    "flexible",
+                    "professional",
+                    "initiative",
+                    "productive",
+                    "consistent",
+                    "supportive",
+                    "effective"
+            );
+
+            for (String fallbackWord : fallbackCandidates) {
+
+                if (!candidates.contains(fallbackWord)) {
+                    candidates.add(fallbackWord);
+                }
+            }
+
+            /*
+             * Process candidates until the pool reaches 10.
+             */
             for (String candidate : candidates) {
+
+                if (dailyWordRepository.count()
+                        >= MIN_WORD_POOL) {
+                    break;
+                }
 
                 try {
 
+                    if (candidate == null
+                            || candidate.isBlank()) {
+                        continue;
+                    }
+
+                    String cleanCandidate =
+                            candidate.trim().toLowerCase();
+
+                    /*
+                     * Skip words already present in the
+                     * DailyWord table.
+                     */
+                    if (dailyWordRepository
+                            .findByWordIgnoreCase(cleanCandidate)
+                            .isPresent()) {
+
+                        System.out.println(
+                                "Word already exists: "
+                                        + cleanCandidate
+                        );
+
+                        continue;
+                    }
+
+                    /*
+                     * Try Dictionary API first.
+                     * DictionaryApiService now has its
+                     * built-in fallback.
+                     */
                     DictionaryWordResponse result =
                             wordValidationService
-                                    .validateWord(candidate);
+                                    .validateWord(cleanCandidate);
 
                     if (result == null) {
 
                         System.out.println(
                                 "Skipping invalid word: "
-                                        + candidate
+                                        + cleanCandidate
                         );
 
                         continue;
@@ -89,6 +159,9 @@ public class DailyWordReplenishmentService {
                             result.getWord()
                                     .trim();
 
+                    /*
+                     * Double-check before saving.
+                     */
                     if (dailyWordRepository
                             .findByWordIgnoreCase(word)
                             .isPresent()) {
@@ -108,9 +181,7 @@ public class DailyWordReplenishmentService {
                                     result.getExample()
                             );
 
-                    dailyWordRepository.save(
-                            dailyWord
-                    );
+                    dailyWordRepository.save(dailyWord);
 
                     System.out.println(
                             "New word saved: "
@@ -127,6 +198,11 @@ public class DailyWordReplenishmentService {
                     );
                 }
             }
+
+            System.out.println(
+                    "Daily word pool after replenishment: "
+                            + dailyWordRepository.count()
+            );
 
         } catch (Exception e) {
 
