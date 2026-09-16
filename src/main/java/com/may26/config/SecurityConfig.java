@@ -80,7 +80,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(
                 List.of(
                         "http://localhost:5173",
-                        "https://consistiq.netlify.app"
+                        "https://consist-iq-frontend.vercel.app"
                 )
         );
 
