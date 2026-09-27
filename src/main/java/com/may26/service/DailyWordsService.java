@@ -1,6 +1,7 @@
 package com.may26.service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -60,15 +61,16 @@ public class DailyWordsService {
             LocalDate today = LocalDate.now();
 
             /*
-             * IMPORTANT:
-             * If today's words were already created,
-             * return the same words instead of generating
-             * another set after every refresh.
+             * Get words already assigned to this user today.
              */
             List<UserWordHistory> todaysHistory =
                     userWordHistoryRepository
                             .findByUserAndShownDate(user, today);
 
+            /*
+             * If user already has 5 words today,
+             * simply return those 5 words.
+             */
             if (todaysHistory.size() >= 5) {
 
                 return todaysHistory.stream()
@@ -78,29 +80,30 @@ public class DailyWordsService {
             }
 
             /*
-             * No words have been assigned to this user today.
+             * Calculate how many more words are required.
+             */
+            int remaining =
+                    5 - todaysHistory.size();
+
+            /*
              * Find words this user has never seen before.
              */
             List<DailyWord> availableWords =
                     dailyWordRepository
                             .findWordsNotSeenByUser(user);
 
-            if (availableWords.isEmpty()) {
-                return Collections.emptyList();
-            }
-
             /*
-             * Take a maximum of 5 new words.
+             * Select only the number of words required.
              */
-            List<DailyWord> todaysWords =
+            List<DailyWord> additionalWords =
                     availableWords.stream()
-                            .limit(5)
+                            .limit(remaining)
                             .toList();
 
             /*
-             * Save today's words into user history.
+             * Save the newly assigned words.
              */
-            for (DailyWord word : todaysWords) {
+            for (DailyWord word : additionalWords) {
 
                 UserWordHistory history =
                         new UserWordHistory(
@@ -112,13 +115,30 @@ public class DailyWordsService {
                 userWordHistoryRepository.save(history);
             }
 
-            return todaysWords;
+            /*
+             * Combine today's existing words
+             * with the newly assigned words.
+             */
+            List<DailyWord> result =
+                    new ArrayList<>();
+
+            result.addAll(
+                    todaysHistory.stream()
+                            .map(UserWordHistory::getWord)
+                            .toList()
+            );
+
+            result.addAll(additionalWords);
+
+            return result.stream()
+                    .limit(5)
+                    .toList();
 
         } catch (Exception e) {
 
             System.err.println(
                     "Daily Words unavailable: "
-                    + e.getMessage()
+                            + e.getMessage()
             );
 
             return Collections.emptyList();
