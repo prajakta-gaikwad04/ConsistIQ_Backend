@@ -27,6 +27,9 @@ public class WordDiscoveryService {
 
     public List<String> findWords() {
 
+        // ALWAYS return a mutable list
+        List<String> words = new ArrayList<>();
+
         try {
 
             String json = restClient
@@ -37,32 +40,29 @@ public class WordDiscoveryService {
                                     "ml",
                                     "useful words for communication"
                             )
-                            .queryParam("max", 5)
+                            .queryParam("max", 20)
                             .build())
                     .retrieve()
                     .body(String.class);
 
             if (json == null || json.isBlank()) {
-                return List.of();
+                return words;
             }
 
             JsonNode root =
                     objectMapper.readTree(json);
 
             if (!root.isArray()) {
-                return List.of();
+                return words;
             }
-
-            List<String> words =
-                    new ArrayList<>();
 
             for (JsonNode item : root) {
 
                 String word =
                         item.path("word")
                                 .asText("")
-                                .toLowerCase()
-                                .trim();
+                                .trim()
+                                .toLowerCase();
 
                 if (isValidCandidate(word)
                         && !words.contains(word)) {
@@ -71,17 +71,15 @@ public class WordDiscoveryService {
                 }
             }
 
-            return words;
-
         } catch (Exception e) {
 
             System.err.println(
-                    "Word discovery unavailable: "
+                    "Datamuse unavailable: "
                             + e.getMessage()
             );
-
-            return List.of();
         }
+
+        return words;
     }
 
     private boolean isValidCandidate(String word) {

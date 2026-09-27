@@ -16,16 +16,19 @@ public interface DailyWordRepository
     @Query("""
         SELECT w
         FROM DailyWord w
-        WHERE w.id NOT IN (
-            SELECT h.word.id
+        WHERE NOT EXISTS (
+            SELECT h.id
             FROM UserWordHistory h
             WHERE h.user = :user
+              AND h.word = w
         )
         ORDER BY w.id
     """)
     List<DailyWord> findWordsNotSeenByUser(
             @Param("user") User user
     );
+
     Optional<DailyWord> findByWordIgnoreCase(String word);
+
     long count();
 }

@@ -18,7 +18,7 @@ public class DailyWordReplenishmentScheduler {
 
     @Scheduled(
             fixedDelay = 3600000,
-            initialDelay = 60000
+            initialDelay = 10000
     )
     public void checkAndReplenishWords() {
 
@@ -26,6 +26,7 @@ public class DailyWordReplenishmentScheduler {
                 "Daily word scheduler: checking word pool..."
         );
 
-        dailyWordReplenishmentService.replenishWords();
+        dailyWordReplenishmentService
+                .replenishWords();
     }
 }
