@@ -12,7 +12,13 @@ import com.may26.repository.DailyWordRepository;
 @Service
 public class DailyWordReplenishmentService {
 
-    private static final long MIN_WORD_POOL = 10;
+    /*
+     * Keep a reasonably large pool.
+     *
+     * 10 is too small because users are not allowed
+     * to see the same word again.
+     */
+    private static final long MIN_WORD_POOL = 50;
 
     private final WordDiscoveryService wordDiscoveryService;
     private final WordValidationService wordValidationService;
@@ -32,38 +38,40 @@ public class DailyWordReplenishmentService {
 
         try {
 
-            long currentWordCount =
+            long currentCount =
                     dailyWordRepository.count();
 
             System.out.println(
                     "Current daily word pool: "
-                            + currentWordCount
+                            + currentCount
             );
 
-            if (currentWordCount >= MIN_WORD_POOL) {
+            if (currentCount >= MIN_WORD_POOL) {
 
                 System.out.println(
-                        "Daily word pool is sufficient. "
-                                + "No replenishment needed."
+                        "Daily word pool is sufficient."
                 );
 
                 return;
             }
 
-            System.out.println(
-                    "Daily word pool is low. "
-                            + "Starting replenishment..."
-            );
-
             /*
-             * First try words discovered from Datamuse.
+             * IMPORTANT:
+             * Always create a mutable ArrayList.
+             *
+             * WordDiscoveryService may return an immutable
+             * List.of() when Datamuse is unavailable.
              */
             List<String> candidates =
                     new ArrayList<>(
                             wordDiscoveryService.findWords()
                     );
 
+            /*
+             * Reliable fallback words.
+             */
             List<String> fallbackCandidates = List.of(
+
                     "clarify",
                     "reliable",
                     "confident",
@@ -83,93 +91,132 @@ public class DailyWordReplenishmentService {
                     "productive",
                     "consistent",
                     "supportive",
-                    "effective"
+                    "effective",
+                    "organized",
+                    "focused",
+                    "respectful",
+                    "accurate",
+                    "valuable",
+                    "practical",
+                    "positive",
+                    "capable",
+                    "independent",
+                    "motivated",
+                    "dedicated",
+                    "successful",
+                    "constructive",
+                    "innovative",
+                    "logical",
+                    "relevant",
+                    "appropriate",
+                    "essential",
+                    "specific",
+                    "accurate",
+                    "creative",
+                    "strategic",
+                    "flexible",
+                    "professional",
+                    "solution",
+                    "priority",
+                    "progress",
+                    "quality",
+                    "resourceful",
+                    "productive",
+                    "confident"
             );
 
+            /*
+             * Add fallback words to discovered words.
+             */
             for (String fallbackWord : fallbackCandidates) {
 
                 if (!candidates.contains(fallbackWord)) {
+
                     candidates.add(fallbackWord);
                 }
             }
 
             /*
-             * Process candidates until the pool reaches 10.
+             * Process candidates until pool reaches 50.
              */
             for (String candidate : candidates) {
 
                 if (dailyWordRepository.count()
                         >= MIN_WORD_POOL) {
+
                     break;
                 }
 
+                if (candidate == null
+                        || candidate.isBlank()) {
+
+                    continue;
+                }
+
+                String cleanCandidate =
+                        candidate.trim().toLowerCase();
+
                 try {
 
-                    if (candidate == null
-                            || candidate.isBlank()) {
-                        continue;
-                    }
-
-                    String cleanCandidate =
-                            candidate.trim().toLowerCase();
-
                     /*
-                     * Skip words already present in the
-                     * DailyWord table.
+                     * Don't insert duplicates.
                      */
                     if (dailyWordRepository
-                            .findByWordIgnoreCase(cleanCandidate)
+                            .findByWordIgnoreCase(
+                                    cleanCandidate)
                             .isPresent()) {
-
-                        System.out.println(
-                                "Word already exists: "
-                                        + cleanCandidate
-                        );
 
                         continue;
                     }
 
                     /*
-                     * Try Dictionary API first.
-                     * DictionaryApiService now has its
-                     * built-in fallback.
+                     * Get proper meaning + example
+                     * from your Dictionary API.
                      */
                     DictionaryWordResponse result =
                             wordValidationService
-                                    .validateWord(cleanCandidate);
+                                    .validateWord(
+                                            cleanCandidate
+                                    );
 
                     if (result == null) {
 
                         System.out.println(
-                                "Skipping invalid word: "
+                                "Dictionary validation failed: "
                                         + cleanCandidate
                         );
 
                         continue;
                     }
 
-                    String word =
+                    if (result.getWord() == null
+                            || result.getWord().isBlank()
+                            || result.getMeaning() == null
+                            || result.getMeaning().isBlank()
+                            || result.getExample() == null
+                            || result.getExample().isBlank()) {
+
+                        continue;
+                    }
+
+                    String finalWord =
                             result.getWord()
-                                    .trim();
+                                    .trim()
+                                    .toLowerCase();
 
                     /*
-                     * Double-check before saving.
+                     * Check again before saving.
                      */
                     if (dailyWordRepository
-                            .findByWordIgnoreCase(word)
+                            .findByWordIgnoreCase(finalWord)
                             .isPresent()) {
-
-                        System.out.println(
-                                "Word already exists: "
-                                        + word
-                        );
 
                         continue;
                     }
 
                     DailyWord dailyWord =
                             new DailyWord(
-                                    word,
+                                    finalWord,
                                     result.getMeaning(),
                                     result.getExample()
                             );
@@ -177,16 +224,16 @@ public class DailyWordReplenishmentService {
                     dailyWordRepository.save(dailyWord);
 
                     System.out.println(
-                            "New word saved: "
-                                    + word
+                            "New daily word saved: "
+                                    + finalWord
                     );
 
                 } catch (Exception e) {
 
                     System.err.println(
-                            "Failed to process word '"
-                                    + candidate
-                                    + "': "
+                            "Failed to process word "
+                                    + cleanCandidate
+                                    + ": "
                                     + e.getMessage()
                     );
                 }

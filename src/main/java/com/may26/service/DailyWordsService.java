@@ -19,18 +19,26 @@ import com.may26.repository.UserWordHistoryRepository;
 @Service
 public class DailyWordsService {
 
+    private static final int DAILY_WORD_LIMIT = 5;
+
     private final DailyWordRepository dailyWordRepository;
     private final UserRepository userRepository;
     private final UserWordHistoryRepository userWordHistoryRepository;
+    private final DailyWordReplenishmentService
+            dailyWordReplenishmentService;
 
     public DailyWordsService(
             DailyWordRepository dailyWordRepository,
             UserRepository userRepository,
-            UserWordHistoryRepository userWordHistoryRepository) {
+            UserWordHistoryRepository userWordHistoryRepository,
+            DailyWordReplenishmentService dailyWordReplenishmentService) {
 
         this.dailyWordRepository = dailyWordRepository;
         this.userRepository = userRepository;
-        this.userWordHistoryRepository = userWordHistoryRepository;
+        this.userWordHistoryRepository =
+                userWordHistoryRepository;
+        this.dailyWordReplenishmentService =
+                dailyWordReplenishmentService;
     }
 
     public List<DailyWord> getDailyWords() {
@@ -42,61 +50,101 @@ public class DailyWordsService {
                             .getContext()
                             .getAuthentication();
 
-            if (authentication == null ||
-                !authentication.isAuthenticated()) {
+            if (authentication == null
+                    || !authentication.isAuthenticated()
+                    || authentication.getName() == null) {
 
                 return Collections.emptyList();
             }
 
-            String email = authentication.getName();
+            String email =
+                    authentication.getName();
 
-            User user = userRepository
-                    .findByEmail(email)
-                    .orElse(null);
+            User user =
+                    userRepository
+                            .findByEmail(email)
+                            .orElse(null);
 
             if (user == null) {
+
                 return Collections.emptyList();
             }
 
-            LocalDate today = LocalDate.now();
+            LocalDate today =
+                    LocalDate.now();
 
-            // Get words already assigned today
+            /*
+             * STEP 1
+             *
+             * Check today's already assigned words.
+             */
             List<UserWordHistory> todaysHistory =
                     userWordHistoryRepository
-                            .findByUserAndShownDate(user, today);
+                            .findByUserAndShownDate(
+                                    user,
+                                    today
+                            );
 
-            // Already have 5 words
-            if (todaysHistory.size() >= 5) {
+            /*
+             * If today's 5 words already exist,
+             * return exactly those 5.
+             */
+            if (todaysHistory.size()
+                    >= DAILY_WORD_LIMIT) {
 
                 return todaysHistory.stream()
                         .map(UserWordHistory::getWord)
-                        .limit(5)
+                        .limit(DAILY_WORD_LIMIT)
                         .toList();
             }
 
-            // Calculate how many more words are required
-            int remaining = 5 - todaysHistory.size();
+            /*
+             * STEP 2
+             *
+             * We need more words.
+             */
+            int remaining =
+                    DAILY_WORD_LIMIT
+                            - todaysHistory.size();
 
-            // Get words the user has never seen before
+            System.out.println(
+                    "Today's words: "
+                            + todaysHistory.size()
+                            + ", remaining: "
+                            + remaining
+            );
+
+            /*
+             * STEP 3
+             *
+             * Replenish the global pool BEFORE
+             * looking for unseen words.
+             */
+            dailyWordReplenishmentService
+                    .replenishWords();
+
+            /*
+             * STEP 4
+             *
+             * Find words this user has NEVER seen.
+             */
             List<DailyWord> availableWords =
                     dailyWordRepository
                             .findWordsNotSeenByUser(user);
 
-            if (availableWords.isEmpty()) {
-
-                return todaysHistory.stream()
-                        .map(UserWordHistory::getWord)
-                        .limit(5)
-                        .toList();
-            }
-
-            // Select only the required number
+            /*
+             * Select only the number we need.
+             */
             List<DailyWord> newWords =
                     availableWords.stream()
                             .limit(remaining)
                             .toList();
 
-            // Save today's new words
+            /*
+             * STEP 5
+             *
+             * Save the new words in today's history.
+             */
             for (DailyWord word : newWords) {
 
                 UserWordHistory history =
@@ -106,22 +154,31 @@ public class DailyWordsService {
                                 today
                         );
 
-                userWordHistoryRepository.save(history);
+                userWordHistoryRepository
+                        .save(history);
             }
 
-            // Combine today's existing words + newly assigned words
-            List<DailyWord> todaysWords = new java.util.ArrayList<>();
+            /*
+             * STEP 6
+             *
+             * Combine old + new.
+             */
+            List<DailyWord> result =
+                    new ArrayList<>();
 
-            todaysWords.addAll(
+            result.addAll(
                     todaysHistory.stream()
                             .map(UserWordHistory::getWord)
                             .toList()
             );
 
-            todaysWords.addAll(newWords);
+            result.addAll(newWords);
 
-            return todaysWords.stream()
-                    .limit(5)
+            /*
+             * Return maximum 5 words.
+             */
+            return result.stream()
+                    .limit(DAILY_WORD_LIMIT)
                     .toList();
 
         } catch (Exception e) {
@@ -130,6 +187,8 @@ public class DailyWordsService {
                     "Daily Words unavailable: "
                             + e.getMessage()
             );
+
+            e.printStackTrace();
 
             return Collections.emptyList();
         }
