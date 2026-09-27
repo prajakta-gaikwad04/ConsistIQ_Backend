@@ -69,7 +69,7 @@ public class DailyWordsService {
                     userWordHistoryRepository
                             .findByUserAndShownDate(user, today);
 
-            if (!todaysHistory.isEmpty()) {
+            if (todaysHistory.size() >= 5) {
 
                 return todaysHistory.stream()
                         .map(UserWordHistory::getWord)
