@@ -59,17 +59,10 @@ public class DailyWordReplenishmentService {
              * First try words discovered from Datamuse.
              */
             List<String> candidates =
-                    wordDiscoveryService.findWords();
+                    new ArrayList<>(
+                            wordDiscoveryService.findWords()
+                    );
 
-            if (candidates == null) {
-                candidates = new ArrayList<>();
-            }
-
-            /*
-             * Add reliable built-in candidates as a fallback.
-             * These are appended only when the existing pool
-             * still needs more words.
-             */
             List<String> fallbackCandidates = List.of(
                     "clarify",
                     "reliable",
